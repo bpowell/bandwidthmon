@@ -7,6 +7,8 @@
 #define SQL_CREATE_MONTHS	"create table months(id INTEGER PRIMARY KEY, local_up INTEGER, local_down INTEGER, external_up INTEGER, external_down INTEGER);"
 #define SQL_CREATE_YEARS	"create table years(id INTEGER PRIMARY KEY, local_up INTEGER, local_down INTEGER, external_up INTEGER, external_down INTEGER);"
 
+#define BUFFER_SIZE 	1000
+
 #ifdef IN_MEMORY_DB
 #define DATABASE ":memory:"
 #else
