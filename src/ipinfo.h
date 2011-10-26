@@ -15,7 +15,5 @@ struct pkt_info {
 	int length;
 };
 
-extern device_info get_device_info(char *device=NULL);	
-extern pkt_info get_packet_info(struct *ip);
 
 #endif
