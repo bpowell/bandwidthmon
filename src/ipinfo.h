@@ -15,5 +15,12 @@ struct pkt_info {
 	int length;
 };
 
+struct bandwidth_info {
+	int local_up;
+	int local_down;
+	int external_up;
+	int external_down;
+};
+
 
 #endif
