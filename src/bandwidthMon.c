@@ -10,17 +10,56 @@
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
+#include <netinet/ether.h>
 
 #include "ipinfo.h"
+#include "utils.h"
 
 static void usage() __attribute__((noreturn));
 char *program_name;
+
+static struct bandwidth_info bw_info;
+
+void print_pkt_info(const struct pkt_info *p)
+{
+	fprintf(stdout, "Source IP %s\tDest IP %s\tLength %i\n",
+		p->src_ip, 
+		p->dst_ip,
+		p->length);
+	fflush(stdout);
+
+	return;
+}
+
+void handle_packets(unsigned char *args, const struct pcap_pkthdr *pkthdr, const unsigned char *packet)
+{
+	struct pkt_info pktinfo;
+	struct ip *ip_info;
+
+	unsigned int off;
+
+	ip_info = (struct ip*)(packet + sizeof(struct ether_header));
+	off = ntohs(ip_info->ip_off);
+
+	if((off & 0x1fff)==0)
+	{
+		strncpy(pktinfo.src_ip, inet_ntoa(ip_info->ip_src), sizeof(pktinfo.src_ip));
+		strncpy(pktinfo.dst_ip, inet_ntoa(ip_info->ip_dst), sizeof(pktinfo.dst_ip));
+		pktinfo.length = pkthdr->len;
+
+		print_pkt_info(&pktinfo);
+
+		
+	}
+
+}
 
 int main(int argc, char**argv)
 {
 	char *device = NULL;
 	struct device_info dev_info;
 	char ebuf[PCAP_ERRBUF_SIZE];
+	pcap_t* descr;
 
 	bpf_u_int32 net, mask;
 	struct in_addr address;
@@ -30,6 +69,11 @@ int main(int argc, char**argv)
 
 	opterr = 0;
 	int c;
+
+	bw_info.local_up = 0;
+	bw_info.local_down = 0;
+	bw_info.external_up = 0;
+	bw_info.external_down = 0;
 
 	program_name = argv[0];
 
@@ -52,16 +96,14 @@ int main(int argc, char**argv)
 		device = pcap_lookupdev(ebuf);
 		if(device==NULL)
 		{
-			fprintf(stderr, "Cannot find a valid device.\nError: %s\n", ebuf);
-			exit(1);
+			error("Cannot find a valid device.\nError: %s\n", ebuf);
 		}
 	}
 	dev_info.dev_name = device;
 
 	if(pcap_lookupnet(dev_info.dev_name, &net, &mask, ebuf)==-1)
 	{
-		fprintf(stderr, "Could not obtain network for device %s\n", dev_info.dev_name);
-		exit(1);
+		error("Could not obtain network for device %s\n", dev_info.dev_name);
 	}
 	address.s_addr = net;
 	strcpy(dev_info.dev_network, inet_ntoa(address));
@@ -69,14 +111,24 @@ int main(int argc, char**argv)
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if(fd<0)
 	{
-		fprintf(stderr, "Unable to get IP address\n");
-		exit(1);
+		error("Unable to get IP address\n");
 	}
 	ifr.ifr_addr.sa_family = AF_INET;
 	strncpy(ifr.ifr_name, dev_info.dev_name, IFNAMSIZ-1);
 	ioctl(fd, SIOCGIFADDR, &ifr);
 	strcpy(dev_info.dev_ip, inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
 	/* End IP */
+
+	printf("herre");
+	/* Open device for reading */
+	descr = pcap_open_live(dev_info.dev_name, BUFSIZ, 0, 1000, ebuf);
+	if(descr == NULL)
+	{
+		error("pcap_open_live(): %s\n", ebuf);
+	}
+
+	/* Loop that shit */
+	pcap_loop(descr, -1, handle_packets, NULL);
 
 
 	return 0;
