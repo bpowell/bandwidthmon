@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>
 
 #include <pcap.h>
 #include <sys/socket.h>
@@ -12,13 +13,24 @@
 #include <sys/ioctl.h>
 #include <netinet/ether.h>
 
+#include <sqlite3.h>
+
 #include "ipinfo.h"
 #include "utils.h"
+#include "sql.h"
 
 static void usage() __attribute__((noreturn));
 char *program_name;
 
 static struct bandwidth_info bw_info;
+static struct device_info dev_info;
+
+/* Number of seconds to flush out SQL and PCAP Loop (in ms) */
+int pcap_flush_out = 1000;
+int sql_flush_out = 2000; 
+static time_t oldtime;
+
+sqlite3 *db;
 
 void print_pkt_info(const struct pkt_info *p)
 {
@@ -26,6 +38,13 @@ void print_pkt_info(const struct pkt_info *p)
 		p->src_ip, 
 		p->dst_ip,
 		p->length);
+
+	
+	fprintf(stdout, "EU: %i\tED: %i\tIU: %i\tID: %i\n",
+		bw_info.external_up,
+		bw_info.external_down,
+		bw_info.local_up,
+		bw_info.local_down);
 	fflush(stdout);
 
 	return;
@@ -47,17 +66,50 @@ void handle_packets(unsigned char *args, const struct pcap_pkthdr *pkthdr, const
 		strncpy(pktinfo.dst_ip, inet_ntoa(ip_info->ip_dst), sizeof(pktinfo.dst_ip));
 		pktinfo.length = pkthdr->len;
 
-		print_pkt_info(&pktinfo);
+		/* Outgoing Traffic */
+		if(strcmp(pktinfo.src_ip, dev_info.dev_ip)==0)
+		{
+			/* Local Outgoing Traffic */
+			if(strncmp(pktinfo.dst_ip, dev_info.dev_network, 6)==0)
+			{
+				bw_info.local_up += pktinfo.length;
+			}
+			/* External Outgoing Traffic */
+			else
+			{
+				bw_info.external_up += pktinfo.length;
+			}
+		}
+		/* Incoming Traffic */
+		else
+		{
+			/* Local Incoming Traffic */
+			if(strncmp(pktinfo.src_ip, dev_info.dev_network, 6)==0)
+			{
+				bw_info.local_down += pktinfo.length;
+			}
+			/* External Incoming Traffic */
+			else
+			{
+				bw_info.external_down += pktinfo.length;
+			}
+		}
 
-		
+		//print_pkt_info(&pktinfo);
 	}
 
+	/* Flush out bw_info to sql database */
+	time_t newtime;
+	time(&newtime);
+	if( ((int)newtime - (int)oldtime) >= (sql_flush_out/1000) ){
+		update_database(bw_info);
+		time(&oldtime);
+	}
 }
 
 int main(int argc, char**argv)
 {
 	char *device = NULL;
-	struct device_info dev_info;
 	char ebuf[PCAP_ERRBUF_SIZE];
 	pcap_t* descr;
 
@@ -67,8 +119,11 @@ int main(int argc, char**argv)
 	int fd;
 	struct ifreq ifr;
 
+
 	opterr = 0;
 	int c;
+
+	time(&oldtime);
 
 	bw_info.local_up = 0;
 	bw_info.local_down = 0;
@@ -89,6 +144,10 @@ int main(int argc, char**argv)
 			default:
 				break;
 		}
+
+	/* SQL Setup */
+	db_filename = "test_db.db";
+	create_database();
 
 	/* Get IP address information */
 	if(device==NULL)
@@ -119,7 +178,6 @@ int main(int argc, char**argv)
 	strcpy(dev_info.dev_ip, inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
 	/* End IP */
 
-	printf("herre");
 	/* Open device for reading */
 	descr = pcap_open_live(dev_info.dev_name, BUFSIZ, 0, 1000, ebuf);
 	if(descr == NULL)

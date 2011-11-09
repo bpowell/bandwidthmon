@@ -9,15 +9,14 @@
 
 #define BUFFER_SIZE 	1000
 
-#ifdef IN_MEMORY_DB
-#define DATABASE ":memory:"
-#else
-#define DATABASE "bandwidthMon.db"
-#endif 
-
 #include <sqlite3.h>
 
-extern int create_database(sqlite *db);
-extern int update_database(sqlite *db);
+#include "ipinfo.h"
+
+sqlite3 *sql_db;
+char *db_filename;
+
+void create_database();
+void update_database(struct bandwidth_info bw);
 
 #endif
