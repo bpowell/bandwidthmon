@@ -17,38 +17,16 @@
 
 #include "ipinfo.h"
 #include "utils.h"
-#include "sql.h"
+#include "list.h"
 
 static void usage() __attribute__((noreturn));
 char *program_name;
 
-static struct bandwidth_info bw_info;
 static struct device_info dev_info;
 
 /* Number of seconds to flush out SQL and PCAP Loop (in ms) */
 int pcap_flush_out = 1000;
 int sql_flush_out = 2000; 
-static time_t oldtime;
-
-sqlite3 *db;
-
-void print_pkt_info(const struct pkt_info *p)
-{
-	fprintf(stdout, "Source IP %s\tDest IP %s\tLength %i\n",
-		p->src_ip, 
-		p->dst_ip,
-		p->length);
-
-	
-	fprintf(stdout, "EU: %i\tED: %i\tIU: %i\tID: %i\n",
-		bw_info.external_up,
-		bw_info.external_down,
-		bw_info.local_up,
-		bw_info.local_down);
-	fflush(stdout);
-
-	return;
-}
 
 void handle_packets(unsigned char *args, const struct pcap_pkthdr *pkthdr, const unsigned char *packet)
 {
@@ -72,12 +50,10 @@ void handle_packets(unsigned char *args, const struct pcap_pkthdr *pkthdr, const
 			/* Local Outgoing Traffic */
 			if(strncmp(pktinfo.dst_ip, dev_info.dev_network, 6)==0)
 			{
-				bw_info.local_up += pktinfo.length;
 			}
 			/* External Outgoing Traffic */
 			else
 			{
-				bw_info.external_up += pktinfo.length;
 			}
 		}
 		/* Incoming Traffic */
@@ -86,24 +62,14 @@ void handle_packets(unsigned char *args, const struct pcap_pkthdr *pkthdr, const
 			/* Local Incoming Traffic */
 			if(strncmp(pktinfo.src_ip, dev_info.dev_network, 6)==0)
 			{
-				bw_info.local_down += pktinfo.length;
 			}
 			/* External Incoming Traffic */
 			else
 			{
-				bw_info.external_down += pktinfo.length;
 			}
 		}
 
 		//print_pkt_info(&pktinfo);
-	}
-
-	/* Flush out bw_info to sql database */
-	time_t newtime;
-	time(&newtime);
-	if( ((int)newtime - (int)oldtime) >= (sql_flush_out/1000) ){
-		update_database(bw_info);
-		time(&oldtime);
 	}
 }
 
@@ -123,13 +89,6 @@ int main(int argc, char**argv)
 	opterr = 0;
 	int c;
 
-	time(&oldtime);
-
-	bw_info.local_up = 0;
-	bw_info.local_down = 0;
-	bw_info.external_up = 0;
-	bw_info.external_down = 0;
-
 	program_name = argv[0];
 
 	while((c = getopt(argc, argv, "hi:")) != -1) 
@@ -144,10 +103,6 @@ int main(int argc, char**argv)
 			default:
 				break;
 		}
-
-	/* SQL Setup */
-	db_filename = "test_db.db";
-	create_database();
 
 	/* Get IP address information */
 	if(device==NULL)
