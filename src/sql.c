@@ -2,12 +2,24 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <time.h>
 
 #include "sql.h"
 #include "utils.h"
 
 void exec_on_database(sqlite3 *db, const char *fmt, ...);
+struct tm* update_time();
 
+struct tm* update_time()
+{
+	time_t rawtime;
+	struct tm *timeinfo;
+
+	time(&rawtime);
+	timeinfo = localtime(&rawtime);
+
+	return timeinfo;
+}
 
 int is_database_created(const char *filename)
 {
@@ -42,8 +54,7 @@ void create_database()
 
 void update_database(struct bandwidth_info bw)
 {
-	fprintf(stdout, "updating database");
-	fflush(stdout);
+	struct tm *timeinfo = update_time();
 }
 
 void exec_on_database(sqlite3 *db, const char *fmt, ...)

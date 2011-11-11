@@ -1,4 +1,4 @@
-#ifndef _BWM_IP_INOF_H_
+#ifndef _BWM_IP_INFO_H_
 #define _BWM_IP_INFO_H_
 
 #include <netinet/ip.h>
