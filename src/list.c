@@ -40,3 +40,14 @@ void remove_node(struct bwmon *lnode)
 		lnode->next->prev = lnode->prev;
 	}
 }
+
+void print_nodes()
+{
+	struct bwmon *node;
+
+	for(node=HEAD; node != NULL; node = node->next)
+	{
+		printf("%i %i/%i/%i", node->d.hour, node->d.day, node->d.month, node->d.year);
+		printf("len %i type %i\n", node->p.len, node->p.type);
+	}
+}

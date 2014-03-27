@@ -2,6 +2,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <time.h>
+
+struct tm *get_time()
+{
+	time_t t;
+	time(&t);
+	return localtime(&t);
+}
 
 void error(const char *fmt, ...)
 {

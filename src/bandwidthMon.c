@@ -40,6 +40,11 @@ void handle_packets(unsigned char *args, const struct pcap_pkthdr *pkthdr, const
 
 	if((off & 0x1fff)==0)
 	{
+		struct bwmon *node;
+		struct tm *timeinfo;
+		node = (struct bwmon*)malloc(sizeof(struct bwmon));
+		timeinfo = get_time();
+
 		strncpy(pktinfo.src_ip, inet_ntoa(ip_info->ip_src), sizeof(pktinfo.src_ip));
 		strncpy(pktinfo.dst_ip, inet_ntoa(ip_info->ip_dst), sizeof(pktinfo.dst_ip));
 		pktinfo.length = pkthdr->len;
@@ -50,10 +55,12 @@ void handle_packets(unsigned char *args, const struct pcap_pkthdr *pkthdr, const
 			/* Local Outgoing Traffic */
 			if(strncmp(pktinfo.dst_ip, dev_info.dev_network, 6)==0)
 			{
+				node->p.type = 1;
 			}
 			/* External Outgoing Traffic */
 			else
 			{
+				node->p.type = 3;
 			}
 		}
 		/* Incoming Traffic */
@@ -62,14 +69,21 @@ void handle_packets(unsigned char *args, const struct pcap_pkthdr *pkthdr, const
 			/* Local Incoming Traffic */
 			if(strncmp(pktinfo.src_ip, dev_info.dev_network, 6)==0)
 			{
+				node->p.type = 2;
 			}
 			/* External Incoming Traffic */
 			else
 			{
+				node->p.type = 4;
 			}
 		}
 
-		//print_pkt_info(&pktinfo);
+		node->p.len = pktinfo.length;
+		node->d.hour = timeinfo->tm_hour;
+		node->d.day = timeinfo->tm_mday;
+		node->d.month = timeinfo->tm_mon+1;
+		node->d.year = timeinfo->tm_year;
+		append_node(node);
 	}
 }
 

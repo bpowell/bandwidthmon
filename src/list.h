@@ -12,7 +12,7 @@ struct date
  * 3. external up
  * 4. external down
  */
-struct packet
+struct pkt
 {
 	int len;
 	int type;
@@ -20,8 +20,8 @@ struct packet
 
 struct bwmon
 {
-	struct date *d;
-	struct packet *p;
+	struct date d;
+	struct pkt p;
 	struct bwmon *next;
 	struct bwmon *prev;
 };
@@ -30,5 +30,6 @@ struct bwmon *HEAD, *TAIL;
 
 void append_node(struct bwmon *lnode);
 void remove_node(struct bwmon *lnode);
+void print_nodes();
 
 #endif
