@@ -4,6 +4,8 @@ package main
 #cgo LDFLAGS: -lpcap
 #include <pcap.h>
 #include <stdlib.h>
+#include <netinet/ip.h>
+#include <arpa/inet.h>
 void wrapper_handle_packet(unsigned char *a, struct pcap_pkthdr *h, unsigned char *d);
 typedef void (*voidFunc) ();
 */
@@ -15,8 +17,8 @@ import (
 )
 
 //export handle_packet
-func handle_packet(args *C.uchar, header *C.struct_pcap_pkthdr, data *C.uchar) {
-	fmt.Println("here")
+func handle_packet(args *C.uchar, header *C.struct_pcap_pkthdr, data *C.struct_ip) {
+	fmt.Println("here ", C.GoString(C.inet_ntoa(data.ip_src)))
 }
 
 func main() {
