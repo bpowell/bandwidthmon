@@ -12,7 +12,9 @@ typedef void (*voidFunc) ();
 import "C"
 
 import (
+	"errors"
 	"fmt"
+	"net"
 	"os"
 )
 
@@ -25,7 +27,47 @@ func handle_packet(args *C.uchar, header *C.struct_pcap_pkthdr, data *C.struct_i
 	fmt.Println(src_ip, " ", dst_ip, " ", length)
 }
 
+func getIP() (string, error) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return "", err
+	}
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 {
+			continue
+		}
+		if iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			return "", err
+		}
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+			ip = ip.To4()
+			if ip == nil {
+				continue
+			}
+			return ip.String(), nil
+		}
+	}
+	return "", errors.New("are you connected to the network?")
+}
+
 func main() {
+	ip, _ := getIP()
+	fmt.Println(ip)
+
 	ebuf := (*C.char)(C.calloc(256, 1))
 	device := C.pcap_lookupdev(ebuf)
 	if C.GoString(ebuf) != "" {
