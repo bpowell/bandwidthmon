@@ -18,7 +18,11 @@ import (
 
 //export handle_packet
 func handle_packet(args *C.uchar, header *C.struct_pcap_pkthdr, data *C.struct_ip) {
-	fmt.Println("here ", C.GoString(C.inet_ntoa(data.ip_src)))
+	src_ip := C.GoString(C.inet_ntoa(data.ip_src))
+	dst_ip := C.GoString(C.inet_ntoa(data.ip_dst))
+	length := int(header.len)
+
+	fmt.Println(src_ip, " ", dst_ip, " ", length)
 }
 
 func main() {
