@@ -12,8 +12,10 @@ typedef void (*voidFunc) ();
 import "C"
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
+	_ "github.com/mattn/go-sqlite3"
 	"net"
 	"os"
 )
@@ -65,6 +67,13 @@ func getIP() (string, error) {
 }
 
 func main() {
+	db, err := sql.Open("sqlite3", "./test.db")
+	if err != nil {
+		fmt.Println("Cannot open database")
+		os.Exit(1)
+	}
+	defer db.Close()
+
 	ip, _ := getIP()
 	fmt.Println(ip)
 
